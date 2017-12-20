@@ -183,6 +183,12 @@ function MoveBehindCreeps()
 	self:ActionImmediate_Ping(targetLoc[1], targetLoc[2], true);
 end
 
+function FaceEnemies()
+	local self = GetBot();
+	local heroes = self:GetNearbyHeroes(1500, true, BOT_MODE_NONE);
+	local creeps = self:GetNearbyLaneCreeps(1500, true);
+end
+
 function UpdateRange()
 	if (SniperAbilityPriority[nextAbility] == SKILL_E) then
 		atkRange = atkRange + 100;
