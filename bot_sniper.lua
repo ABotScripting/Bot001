@@ -22,6 +22,8 @@ local TALENT8 = 'special_bonus_unique_sniper_4'
 local ultLvl = 0;
 local eLvl = 0;
 
+-- Global variables (seem to persist between ticks)
+-- TODO use more of these, not everything needs to be calculated each time
 local nextAbility = 1;
 local nextItem = 1;
 local atkRange = 550;
@@ -30,15 +32,16 @@ local sightings;
 local currentLane = "mid";
 local laneFront;
 
-
+-- List of skills to level in order
+-- TODO ensure no breaking when list is completed (there are not 25 items in list)
 local SniperAbilityPriority = {
-    --SKILL_W,    SKILL_E,    SKILL_E,    SKILL_W,    SKILL_E,
-    --SKILL_R,    SKILL_W,    SKILL_E,    SKILL_W,	
-	TALENT1,
+    SKILL_W,    SKILL_E,    SKILL_E,    SKILL_W,    SKILL_E,
+    SKILL_R,    SKILL_W,    SKILL_E,    SKILL_W,	TALENT1,
     SKILL_Q,    SKILL_R,    SKILL_Q,    SKILL_Q,	--TALENT4,
     SKILL_Q,    SKILL_R,	--TALENT6,	TALENT7
 }
 
+-- List of items to purchase in order
 local itemPurchase = {
 	"item_circlet",
 	"item_slippers",
@@ -57,7 +60,8 @@ local itemPurchase = {
 	"item_blades_of_attack",
 	"item_recipe_crystalys"
 }
-	
+
+-- Function run by bot on tick
 function Think()
 	local self = GetBot();
 	local time = DotaTime();
@@ -70,10 +74,10 @@ function Think()
 	UpdateLaneFront();
 	
 	if (self:IsUsingAbility() or self:IsChanneling()) then
+		-- TODO fix interrupting ability,
+		-- seems to recognize when it should use an ability
 		print("Using ability...")
 	elseif(self:IsAlive() and time > -85) then
-		--print("Running...");
-		
 		-- Itmes
 		Purchase();
 		
@@ -86,41 +90,42 @@ function Think()
 			MoveToLane();
 		else 
 			--print("Post GameTime: " .. time);
-			--MoveToLane();
-			
 			local atkOrder = 0;
 			if (false) then -- adjust to not be sitting in enemy creeps
 			end
 			
-			atkOrder = atkOrder + DenyCreeps();
-			atkOrder = atkOrder + HitHero();	
-			atkOrder = atkOrder + LastHit();
-			atkOrder = atkOrder + UltHero();
-			if (atkOrder == 0) then 
-				atkOrder = atkOrder + MoveAtkHero();
+			if(true) then -- TODO make it check if its under attack and readjust if it is
+				atkOrder = atkOrder + DenyCreeps();
+				atkOrder = atkOrder + HitHero();	
+				atkOrder = atkOrder + LastHit();
+				atkOrder = atkOrder + UltHero();
+				if (atkOrder == 0) then 
+					atkOrder = atkOrder + MoveAtkHero();
+				end
 			end
 			
+			-- if no attack order run in any of above functions
 			if (atkOrder == 0) then 
-				
 				MoveBehindCreeps();
 			end
 		end
 	end;
 end
 
-function MoveToLane()--Lane)
+-- Tells bot to move to targetLoc
+function MoveToLane()
 	local self = GetBot();
-	--targetLoc = GetLocationAlongLane(LANE_MID, .525);
-	--GetFrontTower(Lane);
 	self:Action_MoveToLocation(targetLoc);
 end
 
+-- Handles bot's leveling up
 function LevelUp()
 	local self = GetBot();
 	if(#SniperAbilityPriority == 0 or SniperAbilityPriority[nextAbility] == nil) then -- If skill list empty
 		print("Ability List Format Error")
 		return
 	end
+	-- TODO Make Talent trees compatable
 	local nextSkill = self:GetAbilityByName(SniperAbilityPriority[nextAbility]);
 	print(nextSkill:GetName());
 	if(nextSkill:CanAbilityBeUpgraded() and (self:GetAbilityPoints() > 0)) then
@@ -131,6 +136,7 @@ function LevelUp()
 	end
 end
 
+-- Handles bot purchases
 function Purchase()
 	local self = GetBot();
 	local savings = self:GetGold();
@@ -146,6 +152,7 @@ function Purchase()
 	end
 end
 
+-- Updates heros that have been sighted
 function UpdateSightings()
 	for i, s in ipairs(sightings) do
 		if (s[2] == 0) then
@@ -155,6 +162,7 @@ function UpdateSightings()
 	end
 end
 
+-- Updates laneFront with the location of the furthest creep or tower in a lane
 function UpdateLaneFront()
 	local self = GetBot();
 	if (self:GetTeam() == 2) then
@@ -183,6 +191,14 @@ function MoveBehindCreeps()
 	self:ActionImmediate_Ping(targetLoc[1], targetLoc[2], true);
 end
 
+-- Function to make the bot face nearby enemies
+function FaceEnemies()
+	local self = GetBot();
+	local heroes = self:GetNearbyHeroes(1500, true, BOT_MODE_NONE);
+	local creeps = self:GetNearbyLaneCreeps(1500, true);
+end
+
+-- Function to update the bot's stored range variable
 function UpdateRange()
 	if (SniperAbilityPriority[nextAbility] == SKILL_E) then
 		atkRange = atkRange + 100;
@@ -190,6 +206,7 @@ function UpdateRange()
 	end
 end
 
+-- function to update the global skill level variables
 function UpdateSkillLvls()
 	local self = GetBot();
 	local skillUpdated = SniperAbilityPriority[nextAbility];
@@ -205,7 +222,8 @@ function UpdateSkillLvls()
 		print("Talent Updated");
 	end;
 end                     
-                        
+
+-- Function to check for denyable creeps and send an atkOrder to deny creeps if possible                        
 function DenyCreeps()   
 	local self = GetBot();
 	local denyableCreeps = self:GetNearbyLaneCreeps(atkRange, false);
@@ -227,6 +245,7 @@ function DenyCreeps()
 	return ret;
 end
 
+-- Function to check for attackable heroes and send an atkOrder to attack heroes if possible                        
 function HitHero()
 	local self = GetBot();
 	local attackableHeroes = self:GetNearbyHeroes(atkRange, true, BOT_MODE_NONE);
@@ -257,7 +276,7 @@ function HitHero()
 			self:Action_AttackUnit(attackableHeroes[1], true);
 			ret = 1;
 			-- TODO fix
-			-- go to attack, when atack finished sf close enough to prompt again
+			-- go to attack, when attack finished sf close enough to prompt again
 		else 
 			MoveBehindCreeps();
 		end;
@@ -266,6 +285,8 @@ function HitHero()
 	return ret;
 end
 
+
+-- Function to check if it can move to attack a hero without triggering creep aggro                  
 function MoveAtkHero()
 	local self = GetBot();
 	local heroes = self:GetNearbyHeroes(1500, true, BOT_MODE_NONE);
@@ -306,6 +327,7 @@ function MoveAtkHero()
 	return ret;
 end
 
+-- Function to check for heroes within ult threshold and ult them 
 function UltHero() 
 	local self = GetBot();
 	local ultableHeroes = self:GetNearbyHeroes(1500 + (ultLvl*500), true, BOT_MODE_NONE);
@@ -314,6 +336,7 @@ function UltHero()
 	
 	if (ultLvl > 0 and self:GetAbilityByName(SKILL_R):IsCooldownReady()) then -- if ult available
 		for i, enemy in ipairs(ultableHeroes) do
+			-- TODO calculate ult threshold properly (not just use 250)
 			if(enemy:GetHealth() < 250) then -- if hero is below health threshold
 				print("Use ability");
 				self:Action_UseAbilityOnEntity(self:GetAbilityByName(SKILL_R), target);
@@ -323,6 +346,7 @@ function UltHero()
 	return ret;
 end;
 
+-- Function to check for attackable creeps and send an atkOrder to last hit creeps if possible                        
 function LastHit()
 	local self = GetBot();
 	local attackableCreeps = self:GetNearbyLaneCreeps(atkRange, true);
@@ -344,6 +368,8 @@ function LastHit()
 	return ret;
 end
 
+-- Function to have the bot creep block at the beginning of the game
+-- TODO implement
 function CreepBlock()
 
 end
